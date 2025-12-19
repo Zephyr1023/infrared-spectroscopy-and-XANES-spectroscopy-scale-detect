@@ -37,24 +37,42 @@ Traditional OCR often fails on complex, low-quality scientific plots. To overcom
 The pipeline consists of data generation, augmentation, mixed training, and inference.
 
 ```mermaid
-graph LR
-    subgraph "1. Data Prep (Sim2Real)"
-    A[Gen: Synthetic Charts] -->|Matplotlib| B(Clean Images)
-    B -->|Augment: Blur/Noise| C(Degraded Images)
-    D[Real Annotations] -->|json2yolo| E(Real Images)
+%%{init: {'theme': 'base'}}%%
+flowchart LR
+    %% 定义样式类 (Scientific Palette)
+    %% data: 蓝色系, 圆角矩形, 代表数据产物
+    classDef data fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#0d47a1,rx:10,ry:10;
+    %% proc: 紫色系, 虚线边框, 代表处理过程/动作
+    classDef proc fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c,rx:5,ry:5,stroke-dasharray: 5 5;
+    %% model: 橙色系, 较粗边框, 代表核心模型
+    classDef model fill:#fff3e0,stroke:#ef6c00,stroke-width:3px,color:#e65100,rx:15,ry:15;
+
+    subgraph SG1 ["🔬 1. Sim2Real Data Prep"]
+        A["🎨 Gen: Synthetic Charts"]:::proc --> B("📄 Clean Images"):::data
+        B --> C{"🌫️ Augment (Blur/Noise)"}:::proc
+        C --> D("🧱 Degraded Images"):::data
+        R["🧠 Real Annotations"]:::data --> S{"🛠️ json2yolo"}:::proc
+        S --> E("🧪 Real Images"):::data
     end
     
-    subgraph "2. Training"
-    C & E -->|Split & Mix| F{Mixed Dataset}
-    F -->|Stage 1: Pre-train| G[YOLOv11 Pose Model]
-    G -->|Stage 2: Fine-tune| H[Final Model]
+    subgraph SG2 ["⚙️ 2. Mixed Training Pipeline"]
+        D & E --> M{"🔀 Split & Mix Data"}:::proc
+        M --> F[("📦 Mixed Dataset")]:::data
+        F --> G{{"🚀 Stage 1: Pre-train (YOLOv11)"}}:::model
+        G ==> H{{"🏆 Stage 2: Fine-tune (Final Model)"}}:::model
     end
     
-    subgraph "3. Deployment"
-    H -->|Inference| I[Axis & Tick Extraction]
+    subgraph SG3 ["🎯 3. Scientific Deployment"]
+        H ==> I["📉 Inference: Axis & Tick Extraction"]:::proc
     end
     
-    style H fill:#f96,stroke:#333,stroke-width:2px
+    %% 强调模型之间的连接线
+    linkStyle 6,7 stroke:#ef6c00,stroke-width:3px,fill:none;
+
+    %% 淡化子图背景
+    style SG1 fill:#fbfcfd,stroke:#cfd8dc,color:#37474f
+    style SG2 fill:#f5f5f7,stroke:#b0bec5,color:#37474f
+    style SG3 fill:#f0f2f5,stroke:#90a4ae,color:#37474f
 
 ```
 
