@@ -1,12 +1,14 @@
 # infrared-spectroscopy-and-XANES-spectroscopy-scale-detect
 Chart scale detector trained using YOLOv11L-Pose for infrared spectroscopy and XANES spectroscopy
 
+Project Overview
 This project aims to address the challenge of automatically extracting chart data from scientific literature (e.g., XANES, Raman spectra). To overcome the scarcity of real annotated data, it employs a Sim2Real (Simulation to Reality) strategy:
 1. Synthetic Data Generation: Batch-generate synthetic charts with precise annotations using Matplotlib.
 2. Domain Adaptation: Apply “corrosion” processing (blurring, noise, compression) to synthetic data via Albumentations, simulating the texture of real scanned documents.
 3. Mixed Training: Train the YOLOv11-Pose model using a large volume of synthetic data combined with a small amount of oversampled, real annotated data.
 4. Keypoint Detection: The model not only detects axis elements but also automatically pairs “tick marks” with “tick labels” through a Keypoint structure, providing a core reference for subsequent coordinate mapping.
 
+File Descriptions
 1. Data Generation & Augmentation
 synthetic chart generator.py Core generation engine that uses Matplotlib to batch-generate synthetic charts in various styles, including line charts and scatter plots, while automatically producing corresponding images and YOLO Pose format labels.
 augment_data.py The critical step in Sim2Real, using Albumentations to apply Gaussian blur, JPEG compression, and noise addition to synthetic high-resolution charts. This reduces domain differences between synthetic data and real scanned documents.
