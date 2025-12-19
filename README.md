@@ -12,12 +12,13 @@
   <strong>A Sim2Real solution for digitizing scientific charts using YOLOv11 Pose estimation.</strong>
 </p>
 
-[Overview](#-project-overview) • [Workflow](#-workflow) • [File Structure](#-file-descriptions) • [Usage](#-getting-started)
+[Overview](#overview) • [Workflow](#workflow) • [File Structure](#file-structure) • [Usage](#usage)
 
 </div>
 
 ---
 
+<a id="overview"></a>
 ## 📖 Project Overview
 
 This project addresses the challenge of automatically extracting chart data (specifically axes and ticks) from scientific literature, such as **XANES** and **Raman spectra**. 
@@ -30,6 +31,7 @@ Traditional OCR often fails on complex, low-quality scientific plots. To overcom
 
 ---
 
+<a id="workflow"></a>
 ## 🚀 Workflow
 
 The pipeline consists of data generation, augmentation, mixed training, and inference.
@@ -57,6 +59,8 @@ graph LR
 ```
 
 ---
+
+<a id="file-structure"></a>
 
 ## 📂 File Descriptions
 
@@ -99,6 +103,8 @@ Testing the model on real-world scientific papers.
 | `real chart test...py` | **Legacy Test**. Early version script for testing Top-2 anchor logic. |
 
 ---
+
+<a id="usage"></a>
 
 ## 🛠️ Getting Started
 
