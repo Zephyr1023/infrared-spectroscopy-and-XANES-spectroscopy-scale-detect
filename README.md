@@ -172,7 +172,3 @@ The model outputs bounding boxes for axis text and keypoints for tick marks.
 <div align="center">
 <p>Developed for Scientific Data Extraction | 2025</p>
 </div>
-
-```
-
-```
