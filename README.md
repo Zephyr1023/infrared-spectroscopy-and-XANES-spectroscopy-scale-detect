@@ -156,7 +156,17 @@ python 3_inference.py
 
 ## 📊 Results Visualization
 
-The model outputs bounding boxes for axis text and keypoints for tick marks.
+The model outputs bounding boxes for axis text and keypoints for tick marks. The examples below demonstrate the model's performance on real-world scientific charts.
+
+<div align="center">
+
+| **Example 1** | **Example 2** | **Example 3** |
+| --- | --- | --- |
+| <img src="result example/result_s41598-019-53979-5_fig2.jpg" width="100%"> | <img src="result example/result_s41598-019-55162-2_fig5.jpg" width="100%"> | <img src="result example/result_s41598-020-58403-x_fig1.jpg" width="100%"> |
+
+</div>
+
+### Legend
 
 | Feature | Visualization Key |
 | --- | --- |
