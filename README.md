@@ -1,54 +1,196 @@
 <div align="center">
 
-# 📊 Scientific Chart Axis Detector
-### Sim2Real: XANES & Infrared Spectroscopy Auto-Digitization
+📊 Chart Scale Detector (Sim2Real)
 
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![YOLOv11](https://img.shields.io/badge/YOLO-v11--Pose-orange?style=for-the-badge&logo=ultralytics&logoColor=white)](https://github.com/ultralytics/ultralytics)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-red?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
-[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+Automated Axis Extraction for XANES & Infrared Spectroscopy
+
+<!-- 徽章部分 -->
+
+<!-- 演示图占位符 -->
+
+<!-- <img src="docs/demo_result.jpg" width="800" alt="Inference Result"> -->
 
 <p align="center">
-  <strong>Automated chart data extraction using YOLOv11-Pose with Domain Adaptation.</strong>
+<strong>A Sim2Real solution for digitizing scientific charts using YOLOv11 Pose estimation.</strong>
 </p>
 
-[Project Overview](#-project-overview) • [Workflow](#-workflow) • [File Structure](#-file-structure) • [Installation](#-installation)
+Overview • Workflow • File Structure • Usage
 
 </div>
 
----
+📖 Project Overview
 
-## 📖 Project Overview
+This project addresses the challenge of automatically extracting chart data (specifically axes and ticks) from scientific literature, such as XANES and Raman spectra.
 
-This project addresses the challenge of automatically extracting chart data from scientific literature (e.g., **XANES**, **Raman spectra**). Traditional OCR methods often fail on complex chart axes. To overcome the scarcity of real annotated data, we employ a **Sim2Real (Simulation to Reality)** strategy:
+Traditional OCR often fails on complex, low-quality scientific plots. To overcome the scarcity of real annotated data, this project employs a Sim2Real (Simulation to Reality) strategy:
 
-| Strategy | Description |
-| :--- | :--- |
-| **1. Synthetic Generation** 🎨 | Batch-generate synthetic charts with precise annotations using Matplotlib. |
-| **2. Domain Adaptation** 🌫️ | Apply **"corrosion"** (blurring, noise, compression) via Albumentations to simulate real scanned documents. |
-| **3. Mixed Training** 🔄 | Train **YOLOv11-Pose** using massive synthetic data + limited oversampled real data. |
-| **4. Keypoint Pairing** 🔗 | Automatically pairs **"tick marks"** with **"tick labels"** for precise coordinate mapping. |
+Synthetic Generation 🎨: Batch-generating diverse charts with Matplotlib.
 
----
+Domain Adaptation 🌫️: "Corroding" synthetic images (blur, noise, compression) to mimic scanned documents.
 
-## 🚀 Workflow
+Pose Estimation 🧩: Using YOLOv11-Pose to detect axes and automatically pair Tick Marks with Tick Labels.
 
-```mermaid
+🚀 Workflow
+
+The pipeline consists of data generation, augmentation, mixed training, and inference.
+
 graph LR
-    subgraph Data_Preparation
-    A[Synthetic Generator] -->|Create| B(Pure Synthetic Images)
-    B -->|Augment Data| C(Degraded Images)
-    D[Manual Annotation] -->|json2yolo| E(Real Images & Labels)
+    subgraph "1. Data Prep (Sim2Real)"
+    A[Gen: Synthetic Charts] -->|Matplotlib| B(Clean Images)
+    B -->|Augment: Blur/Noise| C(Degraded Images)
+    D[Real Annotations] -->|json2yolo| E(Real Images)
     end
     
-    subgraph Dataset_Building
-    C & E -->|Split Data| F{Mixed Dataset}
+    subgraph "2. Training"
+    C & E -->|Split & Mix| F{Mixed Dataset}
+    F -->|Stage 1: Pre-train| G[YOLOv11 Pose Model]
+    G -->|Stage 2: Fine-tune| H[Final Model]
     end
     
-    subgraph Training_Inference
-    F -->|Train/Resume| G[YOLOv11 Pose Model]
-    G -->|Inference| H[Result Visualization]
+    subgraph "3. Deployment"
+    H -->|Inference| I[Axis & Tick Extraction]
     end
     
-    style G fill:#f9f,stroke:#333,stroke-width:2px
-    style H fill:#bbf,stroke:#333,stroke-width:2px
+    style H fill:#f96,stroke:#333,stroke-width:2px
+
+
+📂 File Descriptions
+
+1. Data Generation & Augmentation
+
+Scripts for creating the "Fake" dataset that looks "Real".
+
+File
+
+Description
+
+synthetic chart generator.py
+
+Core Engine. Batch-generates charts (line/scatter) and auto-creates YOLO Pose labels.
+
+augment_data.py
+
+Sim2Real Adapter. Applies Gaussian blur, JPEG compression, and noise to bridge the domain gap.
+
+json2yolo_mixed.py
+
+Format Converter. Converts real LabelMe JSONs to YOLO format, pairing scale points with text boxes.
+
+2. Dataset Construction
+
+Scripts for assembling the training data.
+
+File
+
+Description
+
+1_split_data.py
+
+Assembler. Mixes synthetic and real data, applies oversampling to real samples, and generates .yaml files.
+
+synthetic chart verification.py
+
+Debugger. Visualizes generated YOLO labels on synthetic images to verify coordinate accuracy.
+
+val annotated real...yolo.py
+
+Validator. Visualizes ground truth annotations on the validation set.
+
+3. Model Training
+
+Training pipelines using Ultralytics YOLOv11.
+
+File
+
+Description
+
+2_train.py
+
+Stage 1 (Pre-training). Trains on massive synthetic data (1024sz) using AdamW optimizer.
+
+resume_train.py
+
+Stage 2 (Fine-tuning). Transfer learning on the Mixed Dataset with aggressive augmentation (Mixup, Rotation).
+
+4. Inference & Evaluation
+
+Testing the model on real-world scientific papers.
+
+File
+
+Description
+
+3_inference.py
+
+Main Inference. Predicts on test images, separates X/Y axes, and visualizes tick-label connections.
+
+real chart test...py
+
+Legacy Test. Early version script for testing Top-2 anchor logic.
+
+🛠️ Getting Started
+
+Prerequisites
+
+pip install ultralytics albumentations matplotlib opencv-python tqdm
+
+
+Quick Usage
+
+1. Generate Data
+
+# Generate clean synthetic charts
+python "synthetic chart generator.py"
+
+# Apply Sim2Real degradation
+python augment_data.py
+
+
+2. Prepare Dataset
+
+# Mix synthetic and real data
+python 1_split_data.py
+
+
+3. Train
+
+# Start training (Stage 1 or Stage 2)
+python resume_train.py
+
+
+4. Inference
+
+# Run detection on your images
+python 3_inference.py
+
+
+📊 Results Visualization
+
+The model outputs bounding boxes for axis text and keypoints for tick marks.
+
+Feature
+
+Visualization Key
+
+X-Axis
+
+🟦 Blue Box
+
+Y-Axis
+
+🟥 Red Box
+
+Tick Mark
+
+🟢 Green Dot
+
+Tick Label
+
+🟡 Yellow Dot
+
+Note: The line connecting the Green and Yellow dots represents the specific pairing predicted by the Pose model.
+
+<div align="center">
+<p>Developed for Scientific Data Extraction | 2025</p>
+</div>
+
