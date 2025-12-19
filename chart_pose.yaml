@@ -1,0 +1,16 @@
+# chart_pose.yaml
+
+path: ./yolo_chart_dataset  # 数据集根目录 (可以用绝对路径)
+train: synthetic images/train
+val: synthetic images/val
+
+# 关键点设置 (Pose Specific)
+# kpt_shape: [num_keypoints, num_dims]
+# 我们定义了2个关键点：[刻度线中心, 数值中心]
+# 3 代表 (x, y, visibility)
+kpt_shape: [2, 3]
+
+# 类别名称
+names:
+  0: x_axis_pair  # X轴刻度对
+  1: y_axis_pair  # Y轴刻度对
