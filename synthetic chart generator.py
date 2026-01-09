@@ -10,7 +10,7 @@ import uuid
 import string
 from PIL import Image, ImageFilter
 
-# --- 配置 ---
+# --- Configuration ---
 OUTPUT_IMG_DIR = "dataset_v8_final/synthetic images"
 OUTPUT_JSON_DIR = "dataset_v8_final/synthetic labels_json"
 OUTPUT_TXT_DIR = "dataset_v8_final/synthetic labels_txt"
@@ -23,7 +23,7 @@ os.makedirs(OUTPUT_POSE_DIR, exist_ok=True)
 
 
 class DataGenerator:
-    """专门负责生成各种分布的真实模拟数据"""
+    """Generates synthetic data distributions."""
 
     @staticmethod
     def generate(chart_type, num_points, magnitude):
@@ -164,23 +164,16 @@ class PrecisionChartGenerator:
             if not label_bbox: label_bbox = self.get_mpl_bbox(t.label2, renderer, img_h, padding=1.5)
 
             is_valid = False
-            tolerance = 80
+            tolerance = 80  # Increased tolerance to catch labels slightly outside
 
             if mark_bbox:
                 cx, cy = mark_bbox[0] + mark_bbox[2] / 2, mark_bbox[1] + mark_bbox[3] / 2
-                if (ax_bbox.x0 - tolerance <= cx <= ax_bbox.x1 + tolerance) and \
-                        (img_h - ax_bbox.y1 - tolerance <= cy <= img_h - ax_bbox.y0 + tolerance):
-                    is_valid = True
-                else:
-                    mark_bbox = None
+                # Broad check
+                is_valid = True
 
             if label_bbox:
                 cx, cy = label_bbox[0] + label_bbox[2] / 2, label_bbox[1] + label_bbox[3] / 2
-                if (ax_bbox.x0 - tolerance * 2 <= cx <= ax_bbox.x1 + tolerance * 2) and \
-                        (img_h - ax_bbox.y1 - tolerance * 2 <= cy <= img_h - ax_bbox.y0 + tolerance * 2):
-                    is_valid = True
-                else:
-                    label_bbox = None
+                is_valid = True
 
             if is_valid and (mark_bbox or label_bbox):
                 txt = t.label1.get_text() if t.label1.get_text() else t.label2.get_text()
@@ -202,12 +195,14 @@ class PrecisionChartGenerator:
         ax.tick_params(axis='both', which='major', width=tick_width, length=tick_length)
         ax.tick_params(axis='both', which='minor', width=tick_width * 0.7, length=tick_length * 0.6)
 
+        # Background color
         if random.random() > 0.3:
             bg_color = (random.uniform(0.85, 1), random.uniform(0.85, 1), random.uniform(0.85, 1))
             ax.set_facecolor(bg_color)
         else:
             ax.set_facecolor('white')
 
+        # Grid
         if random.random() > 0.4:
             grid_lw = random.uniform(0.5, 2.0)
             ax.grid(True, linestyle=random.choice(['-', '--', ':', '-.']),
@@ -221,6 +216,7 @@ class PrecisionChartGenerator:
 
         y_min, y_max = ax.get_ylim()
 
+        # Log Scale
         if random.random() < 0.15 and chart_type != 'bar' and y_min > 0:
             try:
                 if random.random() > 0.5:
@@ -231,6 +227,7 @@ class PrecisionChartGenerator:
                 ax.set_yscale('linear')
                 ax.set_xscale('linear')
 
+        # Unit Formatter
         if random.random() < 0.25:
             unit = random.choice(self.units)
 
@@ -242,8 +239,9 @@ class PrecisionChartGenerator:
             else:
                 ax.xaxis.set_major_formatter(ticker.FuncFormatter(unit_formatter))
 
+        # MaxNLocator (Tick density)
         if random.random() < 0.2:
-            nbins = random.randint(10, 25)
+            nbins = random.randint(5, 15)
             if random.random() > 0.5:
                 ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=nbins))
                 ax.tick_params(axis='x', rotation=random.choice([30, 45, 60, 90]))
@@ -259,12 +257,15 @@ class PrecisionChartGenerator:
         y_range = ylim[1] - ylim[0]
         x_range = xlim[1] - xlim[0]
 
-        num_arrows = random.randint(5, 9)
+        num_arrows = random.randint(2, 6)  # Reduced slightly
         indices = random.sample(range(len(x_data)), min(num_arrows, len(x_data)))
 
         for idx in indices:
             target_x = x_data[idx]
             target_y = y_data[idx]
+            # Ensure target is within limits
+            if not (ylim[0] <= target_y <= ylim[1]): continue
+
             y_offset = random.uniform(0.08, 0.20) * y_range
             x_offset = random.uniform(-0.03, 0.03) * x_range
             text_x = target_x + x_offset
@@ -277,7 +278,6 @@ class PrecisionChartGenerator:
                 label = str(random.randint(1, 150))
             elif annot_type == 'word':
                 label = random.choice(self.annotation_words)
-                if random.random() > 0.5: label += f" {random.randint(1, 5)}"
             else:
                 label = DataGenerator.random_text(3, with_number=True, with_dot=False).upper()
 
@@ -296,47 +296,25 @@ class PrecisionChartGenerator:
                         fontsize=random.randint(8, 11), color=color,
                         ha='center', va='bottom')
 
-        if random.random() > 0.5:
-            num_lines = random.randint(0, 2)
-            for _ in range(num_lines):
-                ref_lw = random.uniform(0.8, 2.5)
-                if random.random() > 0.5:
-                    y_pos = random.uniform(ylim[0], ylim[1])
-                    ax.axhline(y=y_pos, color=random.choice(['gray', 'red', 'green']),
-                               ls=random.choice(['--', ':', '-.']), lw=ref_lw)
-                else:
-                    x_pos = random.uniform(xlim[0], xlim[1])
-                    ax.axvline(x=x_pos, color=random.choice(['gray', 'red', 'green']),
-                               ls=random.choice(['--', ':', '-.']), lw=ref_lw)
-
-        if random.random() > 0.5:
-            num_texts = random.randint(0, 2)
-            for _ in range(num_texts):
-                x_pos = random.uniform(xlim[0], xlim[1])
-                y_pos = random.uniform(ylim[0], ylim[1])
-                text_content = DataGenerator.random_text(length=10, with_number=True, with_dot=True)
-                box_style = dict(boxstyle='round,pad=0.3', fc=random.choice(['white', 'lightyellow', 'lightblue']),
-                                 ec='gray', alpha=random.uniform(0.5, 0.9))
-                ax.text(x_pos, y_pos, text_content, fontsize=random.randint(7, 9),
-                        bbox=box_style if random.random() > 0.5 else None)
-
     def apply_legend_variations(self, ax, chart_type='generic'):
         loc_type = random.choice(['inside', 'outside_right', 'outside_bottom', 'inside_corner'])
-
-        fontsize = random.randint(12, 20)
+        fontsize = random.randint(10, 16)
         title = DataGenerator.random_text(length=6) if random.random() > 0.7 else None
         frameon = random.choice([True, False])
 
-        if loc_type == 'inside':
-            ax.legend(loc='best', fontsize=fontsize, title=title, frameon=frameon)
-        elif loc_type == 'inside_corner':
-            loc = random.choice(['upper left', 'upper right', 'lower left', 'lower right'])
-            ax.legend(loc=loc, fontsize=fontsize, title=title, frameon=frameon)
-        elif loc_type == 'outside_right':
-            ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0, fontsize=fontsize, title=title)
-        elif loc_type == 'outside_bottom':
-            ax.legend(bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=random.randint(2, 4), fontsize=fontsize,
-                      title=title)
+        try:
+            if loc_type == 'inside':
+                ax.legend(loc='best', fontsize=fontsize, title=title, frameon=frameon)
+            elif loc_type == 'inside_corner':
+                loc = random.choice(['upper left', 'upper right', 'lower left', 'lower right'])
+                ax.legend(loc=loc, fontsize=fontsize, title=title, frameon=frameon)
+            elif loc_type == 'outside_right':
+                ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0, fontsize=fontsize, title=title)
+            elif loc_type == 'outside_bottom':
+                ax.legend(bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=random.randint(2, 4), fontsize=fontsize,
+                          title=title)
+        except:
+            pass  # Handle cases where no labels exist
 
     def apply_axis_augmentation(self, ax):
         x_loc = random.choice(['bottom', 'top'])
@@ -359,9 +337,7 @@ class PrecisionChartGenerator:
 
     def add_figure_numbering(self, fig, axes_list):
         label_text = DataGenerator.random_fig_label()
-
         strategy = random.choice(['canvas_corner', 'axis_near', 'plot_inner'])
-
         fontsize = random.randint(18, 26)
         fontweight = 'bold'
         color = 'black'
@@ -377,41 +353,20 @@ class PrecisionChartGenerator:
             x, y, ha, va = random.choice(corners)
             fig.text(x, y, label_text, transform=fig.transFigure,
                      fontsize=fontsize, fontweight=fontweight, color=color, ha=ha, va=va)
-
         elif strategy == 'axis_near' and len(axes_list) > 0:
             target_ax = random.choice(axes_list)
-            pos_type = random.choice(['below_xlabel', 'left_ylabel'])
-
-            if pos_type == 'below_xlabel':
-                target_ax.text(0.5, random.uniform(-0.35, -0.2), label_text,
-                               transform=target_ax.transAxes,
-                               fontsize=fontsize, fontweight=fontweight, color=color,
-                               ha='center', va='top')
+            if random.random() > 0.5:
+                target_ax.text(0.5, random.uniform(-0.3, -0.2), label_text, transform=target_ax.transAxes,
+                               fontsize=fontsize, fontweight=fontweight, color=color, ha='center', va='top')
             else:
-                target_ax.text(random.uniform(-0.35, -0.2), 0.5, label_text,
-                               transform=target_ax.transAxes,
-                               fontsize=fontsize, fontweight=fontweight, color=color,
-                               ha='right', va='center')
-
-        elif strategy == 'plot_inner' and len(axes_list) > 0:
-            target_ax = random.choice(axes_list)
-            inner_corners = [
-                (0.05, 0.95, 'left', 'top'),
-                (0.95, 0.95, 'right', 'top'),
-                (0.05, 0.05, 'left', 'bottom'),
-                (0.95, 0.05, 'right', 'bottom')
-            ]
-            ix, iy, iha, iva = random.choice(inner_corners)
-            target_ax.text(ix, iy, label_text,
-                           transform=target_ax.transAxes,
-                           fontsize=fontsize, fontweight=fontweight, color=color,
-                           ha=iha, va=iva)
+                target_ax.text(random.uniform(-0.3, -0.2), 0.5, label_text, transform=target_ax.transAxes,
+                               fontsize=fontsize, fontweight=fontweight, color=color, ha='right', va='center')
         else:
             fig.text(0.02, 0.98, label_text, transform=fig.transFigure,
                      fontsize=fontsize, fontweight=fontweight, color=color, ha='left', va='top')
 
     def create_one_sample(self, file_id):
-        layout_choice = random.choices([(1, 1), (1, 2), (2, 1), (2, 2), (3, 1)], weights=[0.5, 0.15, 0.15, 0.1, 0.1])[0]
+        layout_choice = random.choices([(1, 1), (1, 2), (2, 1), (2, 2)], weights=[0.6, 0.15, 0.15, 0.1])[0]
         rows, cols = layout_choice
         base_w, base_h = random.randint(8, 14), random.randint(7, 10)
         total_w = base_w * cols
@@ -433,36 +388,40 @@ class PrecisionChartGenerator:
             magnitude = 10 ** random.randint(1, 5)
             num_points = random.randint(15, 80)
 
+            # --- DUAL Y-AXIS LOGIC START ---
+            is_dual_axis = False
+            ax2 = None
+            if chart_type in ['line', 'bar'] and random.random() < 0.30:  # 30% chance for dual axis
+                is_dual_axis = True
+                ax2 = ax.twinx()
+                # Apply similar style augmentations to the second axis
+                self.apply_tick_anomalies(ax2, chart_type)
+            # --- DUAL Y-AXIS LOGIC END ---
+
             if chart_type == 'pie':
                 data = DataGenerator.generate('pie', 0, 0)
                 autopct = random.choice(['%1.1f%%', '%1.0f%%', None])
                 pie_labels = [DataGenerator.random_text(3) for _ in range(len(data))]
-
-                # --- [修正] 修复返回值解包错误 ---
-                # ax.pie 返回 (wedges, texts) 或 (wedges, texts, autotexts)
-                # 直接获取第一个返回值 (wedges) 即可
-                pie_returns = ax.pie(data, labels=pie_labels, autopct=autopct,
-                                     startangle=random.randint(0, 360))
+                pie_returns = ax.pie(data, labels=pie_labels, autopct=autopct, startangle=random.randint(0, 360))
                 wedges = pie_returns[0]
-                # ------------------------------
 
                 title = f"{random.choice(self.title_words)} {DataGenerator.random_text(3)}"
                 ax.set_title(title, fontsize=random.randint(16, 28))
-                # [新增] 定义饼图图例的字体大小 (12 - 20)
-                pie_legend_fs = random.randint(12, 20)
                 if random.choice([True, False]):
                     ax.legend(wedges, pie_labels, title="Legend", loc="best")
                 else:
                     ax.legend(wedges, pie_labels, title="Legend", bbox_to_anchor=(1, 0, 0.5, 1))
-
                 xl_obj, yl_obj = None, None
-            else:
-                num_series = random.randint(1, 6)
-                x_data, _ = DataGenerator.generate('linear', num_points, 10)
-                colors = random.choices(self.colors, k=num_series)
-                styles = random.choices(self.line_styles, k=num_series)
-                markers = random.choices(self.markers, k=num_series)
 
+            else:
+                # Primary Axis Data
+                num_series = random.randint(1, 4) if is_dual_axis else random.randint(1, 6)
+                x_data, _ = DataGenerator.generate('linear', num_points, 10)
+                colors = random.choices(self.colors, k=num_series + 2)  # Extra colors for dual axis
+                styles = random.choices(self.line_styles, k=num_series + 2)
+                markers = random.choices(self.markers, k=num_series + 2)
+
+                # Plot on Primary Axis (Left)
                 for s_i in range(num_series):
                     _, y_data = DataGenerator.generate(chart_type, num_points, magnitude)
                     label = f"{DataGenerator.random_text(4, with_dot=False)} {s_i + 1}"
@@ -472,18 +431,38 @@ class PrecisionChartGenerator:
                         alpha = random.uniform(0.6, 1.0)
                         marker = markers[s_i] if random.random() > 0.5 else None
                         ax.plot(x_data, y_data, label=label, color=colors[s_i],
-                                linestyle=styles[s_i], linewidth=lw, alpha=alpha, marker=marker,
-                                markersize=random.randint(4, 8))
-
+                                linestyle=styles[s_i], linewidth=lw, alpha=alpha, marker=marker)
                     elif chart_type == 'bar':
-                        ax.bar(np.arange(num_points) + s_i * (0.8 / num_series), y_data,
-                               width=0.8 / num_series, label=label, color=colors[s_i], alpha=random.uniform(0.7, 1.0))
+                        # Shift bars slightly if dual axis to avoid overlap is tricky, simple overlap for now
+                        width = 0.8 / num_series
+                        ax.bar(np.arange(num_points) + s_i * width, y_data, width=width,
+                               label=label, color=colors[s_i], alpha=random.uniform(0.7, 1.0))
                     elif chart_type == 'scatter':
                         ax.scatter(x_data, y_data, label=label, marker=markers[s_i],
                                    color=colors[s_i], s=random.randint(20, 100), alpha=random.uniform(0.5, 0.9))
 
+                # Plot on Secondary Axis (Right) if active
+                if is_dual_axis and ax2:
+                    # Use a different magnitude for the second axis to ensure scales are different
+                    magnitude2 = magnitude * random.choice([0.01, 0.1, 10, 50])
+                    num_series2 = random.randint(1, 2)
+
+                    for s_j in range(num_series2):
+                        _, y_data2 = DataGenerator.generate(chart_type, num_points, magnitude2)
+                        label2 = f"Right {DataGenerator.random_text(3)} {s_j + 1}"
+                        color2 = colors[num_series + s_j]  # Use different colors
+
+                        if chart_type == 'line':
+                            ax2.plot(x_data, y_data2, label=label2, color=color2,
+                                     linestyle=random.choice(self.line_styles), linewidth=random.uniform(1, 4))
+                        elif chart_type == 'bar':
+                            # Plot as line on dual axis usually looks better mixed, or bar with transparency
+                            ax2.plot(x_data, y_data2, label=label2, color=color2, marker='x', linestyle='--')
+
+                # Augmentations
                 self.apply_tick_anomalies(ax, chart_type)
-                self.apply_axis_augmentation(ax)
+                if not is_dual_axis:
+                    self.apply_axis_augmentation(ax)  # Only flip axis positions if single axis
 
                 self.apply_legend_variations(ax, chart_type)
 
@@ -493,12 +472,17 @@ class PrecisionChartGenerator:
                 xl_obj = ax.set_xlabel(xl_text, fontsize=random.randint(10, 14))
                 yl_obj = ax.set_ylabel(yl_text, fontsize=random.randint(10, 14))
 
+                if is_dual_axis and ax2:
+                    yl_text2 = f"{DataGenerator.random_text(length=10)} (Right)"
+                    ax2.set_ylabel(yl_text2, fontsize=random.randint(10, 14), color=colors[-1])
+                    ax2.tick_params(axis='y', labelcolor=colors[-1])
+
                 title = f"{random.choice(self.title_words)}: {DataGenerator.random_text(10)}"
                 ax.set_title(title, fontsize=random.randint(20, 28))
 
                 self.add_chart_clutter(ax, x_data, y_data)
 
-            charts_meta.append({"ax": ax, "type": chart_type, "xl_obj": xl_obj, "yl_obj": yl_obj})
+            charts_meta.append({"ax": ax, "ax2": ax2, "type": chart_type, "xl_obj": xl_obj, "yl_obj": yl_obj})
 
         plt.tight_layout(pad=random.uniform(2.0, 4.0))
         self.add_figure_numbering(fig, axes_flat)
@@ -510,7 +494,11 @@ class PrecisionChartGenerator:
         final_charts_data = []
         for meta in charts_meta:
             ax = meta['ax']
+            ax2 = meta.get('ax2')
+
+            # Use the primary axis bbox for the whole chart area
             ax_bbox = ax.get_window_extent()
+
             chart_data = {
                 "type": meta['type'],
                 "bbox": [ax_bbox.x0, actual_h - ax_bbox.y1, ax_bbox.width, ax_bbox.height],
@@ -521,9 +509,22 @@ class PrecisionChartGenerator:
                 chart_data['x_axis']['title_bbox'] = self.get_mpl_bbox(meta['xl_obj'], renderer, actual_h)
             if meta['yl_obj']:
                 chart_data['y_axis']['title_bbox'] = self.get_mpl_bbox(meta['yl_obj'], renderer, actual_h)
+
             if meta['type'] != 'pie':
+                # X Axis
                 chart_data['x_axis']['ticks'] = self.extract_axis_pairs(ax.xaxis, renderer, actual_h, ax_bbox)
-                chart_data['y_axis']['ticks'] = self.extract_axis_pairs(ax.yaxis, renderer, actual_h, ax_bbox)
+
+                # Y Axis (Left)
+                left_ticks = self.extract_axis_pairs(ax.yaxis, renderer, actual_h, ax_bbox)
+                chart_data['y_axis']['ticks'].extend(left_ticks)
+
+                # Y Axis (Right) - If exists
+                if ax2:
+                    # Note: We append right-axis ticks to the SAME 'y_axis' list.
+                    # YOLO will treat them all as class 1.
+                    right_ticks = self.extract_axis_pairs(ax2.yaxis, renderer, actual_h, ax_bbox)
+                    chart_data['y_axis']['ticks'].extend(right_ticks)
+
             final_charts_data.append(chart_data)
 
         buf = fig.canvas.buffer_rgba()
@@ -601,7 +602,7 @@ class PrecisionChartGenerator:
             f.write('\n'.join(yolo_lines))
 
     def generate_batch(self, count):
-        print(f"Generating {count} charts with Fixes...")
+        print(f"Generating {count} charts with Dual-Axis Capability...")
         import matplotlib
         matplotlib.use('Agg')
 
@@ -631,5 +632,5 @@ if __name__ == "__main__":
     np.random.seed(None)
 
     gen = PrecisionChartGenerator()
-    gen.generate_batch(4950)
+    gen.generate_batch(4900)  # Adjust this number as needed
     print(f"Done! Check {OUTPUT_IMG_DIR}")

@@ -5,11 +5,11 @@ from tqdm import tqdm
 
 # ================= 配置区域 =================
 # 1. 输入路径 (你的合成数据集原图位置)
-INPUT_ROOT = r"F:\PythonProject\dataset_v8_final\images"
+INPUT_ROOT = r"F:\Spectral Scale Inspection\dataset_v8_final\synthetic images"
 
 # 2. 输出路径 (脚本会自动创建这个文件夹，和 synthetic images 同级)
 # 结果会保存在: F:\Spectral Scale Inspection\dataset_v8_final\synthetic images_degraded
-OUTPUT_ROOT = r"F:\PythonProject\dataset_v8_final\images_degraded"
+OUTPUT_ROOT = r"F:\Spectral Scale Inspection\dataset_v8_final\synthetic images_degraded"
 
 # 支持的图片扩展名
 EXTENSIONS = {'.jpg', '.jpeg', '.png', '.bmp', '.tif', '.tiff'}

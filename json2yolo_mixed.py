@@ -7,10 +7,10 @@ from tqdm import tqdm
 
 # ================= 配置区域 =================
 # 1. LabelMe JSON 文件夹 (真实标注)
-JSON_DIR = r"dataset_v8_final/train_real image and json"
+JSON_DIR = r"/Fourth Raw Dataset"
 
 # 2. 输出 TXT 文件夹 (给 YOLO 验证用)
-OUT_DIR = r"dataset_v8_final/train_real txt"
+OUT_DIR = r"/Fourth Raw Dataset_txt"
 
 
 # ===========================================

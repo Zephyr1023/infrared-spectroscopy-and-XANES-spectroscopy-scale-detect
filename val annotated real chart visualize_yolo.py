@@ -6,12 +6,10 @@ from tqdm import tqdm
 
 # ================= 配置区域 =================
 # 1. 验证集的图片文件夹
-IMG_DIR = r"dataset_v8_final/val_real image and json"
+IMG_DIR = r"/Fourth Raw Dataset"
 
-# 2. 验证集的标签文件夹 (如果和图片在同一个文件夹，就填一样的路径)
-# 假设按照 YOLO 惯例，你的标签可能在同级目录或 labels 文件夹下
-# 如果你的 txt 就在 dataset_v8_final/val_real txt txt 里，这里就保持不变
-LABEL_DIR = r"dataset_v8_final/val_real txt txt"
+# 2. 验证集的标签文件夹
+LABEL_DIR = r"/Fourth Raw Dataset_txt"
 
 # 3. 可视化结果保存路径
 OUT_DIR = r"dataset_v8_final/val_real_visualized"
@@ -29,6 +27,31 @@ def denormalize(val, max_val):
     return int(float(val) * max_val)
 
 
+# --- 新增：读取中文路径图片的辅助函数 ---
+def cv2_imread_chinese(file_path):
+    try:
+        # np.fromfile 读取文件流，cv2.imdecode 解码
+        img_array = np.fromfile(file_path, dtype=np.uint8)
+        img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+        return img
+    except Exception as e:
+        print(f"Error reading {file_path}: {e}")
+        return None
+
+
+# --- 新增：保存中文路径图片的辅助函数 ---
+def cv2_imwrite_chinese(file_path, img):
+    try:
+        # 获取文件后缀名 (如 .jpg)
+        ext = os.path.splitext(file_path)[1]
+        if not ext:
+            ext = ".jpg"  # 默认后缀
+        # cv2.imencode 编码，tofile 保存
+        cv2.imencode(ext, img)[1].tofile(file_path)
+    except Exception as e:
+        print(f"Error writing {file_path}: {e}")
+
+
 def visualize():
     if not os.path.exists(OUT_DIR):
         os.makedirs(OUT_DIR)
@@ -42,29 +65,26 @@ def visualize():
     print(f"🔍 找到 {len(img_paths)} 张图片，开始验证...")
 
     for img_path in tqdm(img_paths):
-        # 读取图片
-        img = cv2.imread(img_path)
+        # 1. 修改处：使用自定义函数读取带中文路径的图片
+        img = cv2_imread_chinese(img_path)
+
         if img is None:
+            print(f"⚠️ 无法读取图片: {img_path}")
             continue
 
         h_img, w_img = img.shape[:2]
 
         # 寻找对应的 txt 文件
-        # 假设文件名一致: image.jpg -> image.txt
         basename = os.path.splitext(os.path.basename(img_path))[0]
         txt_path = os.path.join(LABEL_DIR, basename + ".txt")
 
+        # 简单的文件存在检查
         if not os.path.exists(txt_path):
-            # 如果在 LABEL_DIR 找不到，尝试去 labels 文件夹找 (常见的 YOLO 结构)
-            # 这里的逻辑根据你的实际目录结构调整
-            txt_path_alt = txt_path.replace("synthetic images", "labels")
-            if os.path.exists(txt_path_alt):
-                txt_path = txt_path_alt
-            else:
-                # 确实没有标签，跳过
-                continue
+            # 如果你有备用路径逻辑可以加在这里，暂时直接跳过
+            # print(f"未找到标签: {txt_path}")
+            continue
 
-        with open(txt_path, 'r') as f:
+        with open(txt_path, 'r', encoding='utf-8') as f:  # 建议加上 encoding='utf-8' 防止读txt报错
             lines = f.readlines()
 
         for line in lines:
@@ -72,7 +92,6 @@ def visualize():
             if len(parts) < 5: continue
 
             # 解析 YOLO 格式
-            # <class> <cx> <cy> <w> <h> <px1> <py1> <v1> <px2> <py2> <v2>
             cls_id = int(parts[0])
 
             # 1. 解析 Bounding Box
@@ -96,36 +115,28 @@ def visualize():
             cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
             cv2.putText(img, label_name, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-            # 2. 解析 Keypoints (如果有)
-            # 你的格式应该是 11 个数 (class + box + kpt1 + kpt2)
+            # 2. 解析 Keypoints
             if len(parts) >= 11:
-                # Kpt 1: Tick Mark (刻度线)
+                # Kpt 1: Tick Mark
                 kx1 = denormalize(parts[5], w_img)
                 ky1 = denormalize(parts[6], h_img)
 
-                # Kpt 2: Text Center (文字)
+                # Kpt 2: Text Center
                 kx2 = denormalize(parts[8], w_img)
                 ky2 = denormalize(parts[9], h_img)
 
                 # 画点
-                # 绿色实心圆 = 刻度线
                 cv2.circle(img, (kx1, ky1), 4, COLOR_MARK, -1)
-                # 黄色实心圆 = 文字中心
                 cv2.circle(img, (kx2, ky2), 4, COLOR_TEXT, -1)
 
-                # 画一条线连接它们，方便看配对是否正确
+                # 画线
                 cv2.line(img, (kx1, ky1), (kx2, ky2), (200, 200, 200), 1, cv2.LINE_AA)
 
-        # 保存图片
+        # 2. 修改处：使用自定义函数保存带中文路径的图片
         out_path = os.path.join(OUT_DIR, os.path.basename(img_path))
-        cv2.imwrite(out_path, img)
+        cv2_imwrite_chinese(out_path, img)
 
     print(f"✅ 验证完成！请打开文件夹检查: {OUT_DIR}")
-    print("图例说明:")
-    print("🟦 蓝色框: X轴数据")
-    print("🟥 红色框: Y轴数据")
-    print("🟢 绿色点: 刻度线 (Tick Mark)")
-    print("🟡 黄色点: 数字中心 (Tick Label)")
 
 
 if __name__ == "__main__":
