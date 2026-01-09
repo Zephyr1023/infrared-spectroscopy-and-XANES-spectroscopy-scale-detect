@@ -22,7 +22,7 @@
 <a id="overview"></a>
 ## 📖 Project Overview
 
-This project automates the extraction of **axes, tick marks, and tick labels** from scientific literature. It is specifically optimized for **XANES** and **Infrared (IR) spectra** plots, which often suffer from low resolution, complex layouts (Dual Y-Axes), and noise.
+This project automates the extraction of **axes, tick marks, and tick labels** from scientific literature. It is specifically optimized for a broad range of chemical spectra—including but not limited to XANES and Infrared (IR)—robustly handling common challenges like low resolution, complex layouts (Dual Y-Axes), and noise.
 
 To solve the data scarcity problem, we use a **Sim2Real** pipeline: generating synthetic charts, applying "degradation" (blur/noise/JPEG artifacting), and training a **YOLOv11-Pose** model to detect tick marks as Keypoints and text as Bounding Boxes.
 
