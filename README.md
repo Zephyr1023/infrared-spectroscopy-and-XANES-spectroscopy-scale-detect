@@ -1,18 +1,19 @@
 <div align="center">
 
-# 📊 Chart Scale Detector (Sim2Real)
-### Automated Axis Extraction for XANES & Infrared Spectroscopy
+# 📊 Infrared & XANES Scale Detector
+### Sim2Real: Automated Axis Extraction via YOLOv11-Pose
 
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-[![YOLOv11](https://img.shields.io/badge/YOLO-v11--Pose-orange?style=flat-square&logo=ultralytics&logoColor=white)](https://github.com/ultralytics/ultralytics)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.6.0%2Bcu124-red?style=flat-square&logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![YOLOv11](https://img.shields.io/badge/YOLO-v11L--Pose-orange?style=flat-square&logo=ultralytics&logoColor=white)](https://github.com/ultralytics/ultralytics)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.6.0%2B-red?style=flat-square&logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![License](https://img.shields.io/badge/License-GPL--3.0-green?style=flat-square)](LICENSE)
 
 <p align="center">
-  <strong>A Sim2Real solution for digitizing scientific charts using YOLOv11 Pose estimation.</strong>
+  <strong>A Sim2Real solution for digitizing scientific charts (XANES & Infrared Spectra).</strong><br>
+  Features Dual Y-Axis support, advanced degradation augmentation, and two-stage transfer learning.
 </p>
 
-[Overview](#overview) • [Workflow](#workflow) • [File Structure](#file-structure) • [Usage](#usage)
+[Overview](#overview) • [Key Features](#key-features) • [Workflow](#workflow) • [File Structure](#file-structure) • [Usage](#usage)
 
 </div>
 
@@ -21,58 +22,55 @@
 <a id="overview"></a>
 ## 📖 Project Overview
 
-This project addresses the challenge of automatically extracting chart data (specifically axes and ticks) from scientific literature, such as **XANES** and **Raman spectra**. 
+This project automates the extraction of **axes, tick marks, and tick labels** from scientific literature. It is specifically optimized for **XANES** and **Infrared (IR) spectra** plots, which often suffer from low resolution, complex layouts (Dual Y-Axes), and noise.
 
-Traditional OCR often fails on complex, low-quality scientific plots. To overcome the scarcity of real annotated data, this project employs a **Sim2Real (Simulation to Reality)** strategy:
+To solve the data scarcity problem, we use a **Sim2Real** pipeline: generating synthetic charts, applying "degradation" (blur/noise/JPEG artifacting), and training a **YOLOv11-Pose** model to detect tick marks as Keypoints and text as Bounding Boxes.
 
-1.  **Synthetic Generation** 🎨: Batch-generating diverse charts with Matplotlib.
-2.  **Domain Adaptation** 🌫️: "Corroding" synthetic images (blur, noise, compression) to mimic scanned documents.
-3.  **Pose Estimation** 🧩: Using **YOLOv11-Pose** to detect axes and automatically pair **Tick Marks** with **Tick Labels**.
+<a id="key-features"></a>
+### ✨ Key Features (Updated)
+- **Dual Y-Axis Support**: The synthetic generator and model are explicitly trained to handle charts with secondary Y-axes (Right Axis).
+- **Sim2Real Degradation**: Uses `albumentations` to simulate scanning artifacts (Gaussian Blur, Motion Blur, JPEG Compression, Noise).
+- **Smart Oversampling**: The data splitter automatically oversamples real-world training data (3x factor) to balance the synthetic/real ratio.
+- **Two-Stage Training**:
+    - **Stage 1 (Pre-train)**: High-resolution (1024px) training on massive synthetic data with AdamW.
+    - **Stage 2 (Fine-tune)**: Transfer learning on mixed data with aggressive box loss weights (`box=8.5`) to improve recall.
+- **Strict Inference Logic**: Includes a specialized inference script with confidence filtering, pairing checks, and L/R/T/B stack sorting.
 
 ---
 
 <a id="workflow"></a>
 ## 🚀 Workflow
 
-The pipeline consists of data generation, augmentation, mixed training, and inference.
-
 ```mermaid
-%%{init: {'theme': 'base'}}%%
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e3f2fd', 'edgeLabelBackground':'#ffffff', 'tertiaryColor': '#fff'}}}%%
 flowchart LR
-    %% 定义样式类 (Scientific Palette)
-    %% data: 蓝色系, 圆角矩形, 代表数据产物
-    classDef data fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#0d47a1,rx:10,ry:10;
-    %% proc: 紫色系, 虚线边框, 代表处理过程/动作
-    classDef proc fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c,rx:5,ry:5,stroke-dasharray: 5 5;
-    %% model: 橙色系, 较粗边框, 代表核心模型
-    classDef model fill:#fff3e0,stroke:#ef6c00,stroke-width:3px,color:#e65100,rx:15,ry:15;
+    %% Style Definitions
+    classDef data fill:#e1f5fe,stroke:#0277bd,stroke-width:2px,rx:5,ry:5;
+    classDef proc fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,rx:5,ry:5,stroke-dasharray: 5 5;
+    classDef model fill:#fff3e0,stroke:#ef6c00,stroke-width:3px,rx:10,ry:10;
 
-    subgraph SG1 ["🔬 1. Sim2Real Data Prep"]
-        A["🎨 Gen: Synthetic Charts"]:::proc --> B("📄 Clean Images"):::data
-        B --> C{"🌫️ Augment (Blur/Noise)"}:::proc
-        C --> D("🧱 Degraded Images"):::data
-        R["🧠 Real Annotations"]:::data --> S{"🛠️ json2yolo"}:::proc
-        S --> E("🧪 Real Images"):::data
+    subgraph SG1 ["1. Data Engineering"]
+        direction TB
+        A["🎨 Gen: Dual-Axis Charts"]:::proc --> B("Synthetic Images"):::data
+        B --> C{"🌫️ Degrade\n(Blur/JPEG/Noise)"}:::proc
+        C --> D("Degraded Synth"):::data
+        R["🧠 Real LabelMe JSON"]:::data -.-> S{"🛠️ json2yolo"}:::proc
+        S --> E("Real YOLO Labels"):::data
     end
     
-    subgraph SG2 ["⚙️ 2. Mixed Training Pipeline"]
-        D & E --> M{"🔀 Split & Mix Data"}:::proc
-        M --> F[("📦 Mixed Dataset")]:::data
-        F --> G{{"🚀 Stage 1: Pre-train (YOLOv11)"}}:::model
-        G ==> H{{"🏆 Stage 2: Fine-tune (Final Model)"}}:::model
+    subgraph SG2 ["2. Dataset Assembly"]
+        D & E --> M{"🔀 Split & Mix\n(Real Data x3 Oversampling)"}:::proc
+        M --> F[("📦 Mixed Dataset\n(Train/Val/Test)")]:::data
     end
     
-    subgraph SG3 ["🎯 3. Scientific Deployment"]
-        H ==> I["📉 Inference: Axis & Tick Extraction"]:::proc
+    subgraph SG3 ["3. Training Strategy"]
+        F --> G{{"🚀 Stage 1: Pre-train\n(Sz=1024, AdamW)"}}:::model
+        G ==> H{{"🏆 Stage 2: Fine-tune\n(Sz=960, High Loss Wt)"}}:::model
     end
     
-    %% 强调模型之间的连接线
-    linkStyle 6,7 stroke:#ef6c00,stroke-width:3px,fill:none;
-
-    %% 淡化子图背景
-    style SG1 fill:#fbfcfd,stroke:#cfd8dc,color:#37474f
-    style SG2 fill:#f5f5f7,stroke:#b0bec5,color:#37474f
-    style SG3 fill:#f0f2f5,stroke:#90a4ae,color:#37474f
+    style SG1 fill:#f9f9f9,stroke:#cfd8dc
+    style SG2 fill:#f5f5f7,stroke:#b0bec5
+    style SG3 fill:#fff8e1,stroke:#ffcc80
 
 ```
 
@@ -80,45 +78,37 @@ flowchart LR
 
 <a id="file-structure"></a>
 
-## 📂 File Descriptions
+## 📂 File Structure
 
-### 1. Data Generation & Augmentation
-
-Scripts for creating the "Fake" dataset that looks "Real".
+### 1. Data Generation & Processing
 
 | File | Description |
 | --- | --- |
-| `synthetic chart generator.py` | **Core Engine**. Batch-generates charts (line/scatter) and auto-creates YOLO Pose labels. |
-| `augment_data.py` | **Sim2Real Adapter**. Applies Gaussian blur, JPEG compression, and noise to bridge the domain gap. |
-| `json2yolo_mixed.py` | **Format Converter**. Converts real `LabelMe` JSONs to YOLO format, pairing scale points with text boxes. |
+| `synthetic chart generator.py` | **Core Engine**. Generates Line/Bar/Scatter/Pie charts using Matplotlib. Supports **Dual Y-Axes**, random clutter, and auto-labeling. |
+| `augment_data.py` | **Sim2Real Adapter**. Applies specific degradations: Gaussian/Motion Blur, JPEG Compression (Q30-75), and Noise. |
+| `json2yolo_mixed.py` | **Converter**. Converts LabelMe JSONs to YOLO Pose format. Uses Nearest Neighbor logic to pair Tick Marks (Points) with Labels (Rects). |
 
-### 2. Dataset Construction
-
-Scripts for assembling the training data.
+### 2. Dataset Management
 
 | File | Description |
 | --- | --- |
-| `1_split_data.py` | **Assembler**. Mixes synthetic and real data, applies **oversampling** to real samples, and generates `.yaml` files. |
-| `synthetic chart verification.py` | **Debugger**. Visualizes generated YOLO labels on synthetic images to verify coordinate accuracy. |
-| `val annotated real...yolo.py` | **Validator**. Visualizes ground truth annotations on the validation set. |
+| `1_split_data.py` | **Assembler**. Splits Real data (8:1:1), performs **3x Oversampling** on real training samples, and mixes in degraded synthetic data. Generates `.yaml` config. |
+| `synthetic chart verification.py` | **Debugger**. Visualizes generated YOLO labels on synthetic images to verify coordinate alignment. |
+| `val annotated real...yolo.py` | **Validator**. Visualizes ground truth annotations on the real validation set (Supports Chinese paths). |
 
-### 3. Model Training
-
-Training pipelines using Ultralytics YOLOv11.
+### 3. Training
 
 | File | Description |
 | --- | --- |
-| `2_train.py` | **Stage 1 (Pre-training)**. Trains on massive synthetic data (1024sz) using AdamW optimizer. |
-| `resume_train.py` | **Stage 2 (Fine-tuning)**. Transfer learning on the Mixed Dataset with aggressive augmentation (Mixup, Rotation). |
+| `2_train.py` | **Stage 1 (Pre-train)**. Trains on synthetic data. Settings: `imgsz=1024`, `AdamW`, `cos_lr`, `close_mosaic=10`. |
+| `resume_train.py` | **Stage 2 (Fine-tune)**. Loads best weights from Stage 1. Settings: `imgsz=960`, `box=8.5` (High Recall), `shear=2.0`, **Dual-Axis optimized**. |
 
-### 4. Inference & Evaluation
-
-Testing the model on real-world scientific papers.
+### 4. Inference
 
 | File | Description |
 | --- | --- |
-| `3_inference.py` | **Main Inference**. Predicts on test images, separates X/Y axes, and visualizes tick-label connections. |
-| `real chart test...py` | **Legacy Test**. Early version script for testing Top-2 anchor logic. |
+| `3_inference.py` | **Standard Inference**. Runs detection, filters by `conf=0.3`, extracts Top-2 pairs per axis, and visualizes results. |
+| `real chart test.py` | **Strict Inference**. Applies stricter rules (`conf=0.5`, pairing validation). Sorts results into **L/R/T/B stacks** for complex layouts. |
 
 ---
 
@@ -126,83 +116,90 @@ Testing the model on real-world scientific papers.
 
 ## 🛠️ Getting Started
 
-### Prerequisites
+### 1. Environment Setup
 
-Please ensure you install the specific PyTorch version (**2.6.0+cu124**) compatible with your CUDA environment.
+Install PyTorch (ensure compatibility with your CUDA version) and Ultralytics:
 
 ```bash
-# Install PyTorch with CUDA 12.4 support
 pip install torch==2.6.0+cu124 torchvision --index-url [https://download.pytorch.org/whl/cu124](https://download.pytorch.org/whl/cu124)
-
-# Install other dependencies
-pip install ultralytics albumentations matplotlib opencv-python tqdm
+pip install ultralytics albumentations matplotlib opencv-python tqdm scipy
 
 ```
 
-### Quick Usage
+### 2. Data Preparation Pipeline
 
-**1. Generate Data**
+Follow this exact order to build the dataset:
 
 ```bash
-# Generate clean synthetic charts
+# 1. Generate clean synthetic charts (e.g., 5000 images)
 python "synthetic chart generator.py"
 
-# Apply Sim2Real degradation
+# 2. Apply Sim2Real degradation (Critical step)
 python augment_data.py
 
-```
+# 3. (Optional) Convert your Real LabelMe data
+python json2yolo_mixed.py
 
-**2. Prepare Dataset**
-
-```bash
-# Mix synthetic and real data
+# 4. Mix datasets, apply oversampling, and generate YAML
 python 1_split_data.py
 
 ```
 
-**3. Train**
+### 3. Training Pipeline
+
+The project uses a two-stage training strategy for maximum accuracy.
+
+**Stage 1: Pre-training (Synthetic Focus)**
 
 ```bash
-# Start training (Stage 1 or Stage 2)
+# Trains on 1024px resolution with AdamW
+python 2_train.py
+
+```
+
+**Stage 2: Fine-tuning (Real & Dual-Axis Focus)**
+*Update the checkpoint path in the script before running.*
+
+```bash
+# Resumes with higher box loss weights and geometric augmentations
 python resume_train.py
 
 ```
 
-**4. Inference**
+### 4. Inference
+
+Run the strict inference script to extract data from your test images:
 
 ```bash
-# Run detection on your images
-python 3_inference.py
+# Configure paths inside the script first
+python "real chart test.py"
 
 ```
 
 ---
 
-## 📊 Results Visualization
+## 📊 Performance & Strategies
 
-The model outputs bounding boxes for axis text and keypoints for tick marks. The examples below demonstrate the model's performance on real-world scientific charts.
-
-<div align="center">
-
-| **Example 1** | **Example 2** | **Example 3** |
+| Strategy | Description | Benefit |
 | --- | --- | --- |
-| <img src="result example/result_s41598-019-53979-5_fig2.jpg" width="100%"> | <img src="result example/result_s41598-019-55162-2_fig5.jpg" width="100%"> | <img src="result example/result_s41598-020-58403-x_fig1.jpg" width="100%"> |
-
-</div>
-
-### Legend
-
-| Feature | Visualization Key |
-| --- | --- |
-| **X-Axis** | 🟦 Blue Box |
-| **Y-Axis** | 🟥 Red Box |
-| **Tick Mark** | 🟢 Green Dot |
-| **Tick Label** | 🟡 Yellow Dot |
-
-> *Note: The line connecting the Green and Yellow dots represents the specific pairing predicted by the Pose model.*
+| **ImgSz 1024** | Training at high resolution (1024px/960px). | Crucial for detecting tiny tick marks and separating dense text. |
+| **Box Loss 8.5** | Increased loss weight for bounding boxes in Stage 2. | Reduces "missed detections" on the secondary Y-axis. |
+| **Real Oversampling** | Real images are copied 3x in the training set. | Prevents the model from overfitting to the synthetic style. |
+| **Close Mosaic** | Mosaic augmentation is turned off for the last 10 epochs. | Allows the model to stabilize on realistic, non-stitched images. |
 
 ---
 
 <div align="center">
 <p>Developed for Scientific Data Extraction | 2025</p>
 </div>
+
+```
+### 主要更改说明 (Changes made based on your code):
+
+1.  **Workflow 更新**：明确了 `1_split_data.py` 中的 **Oversampling (过采样)** 逻辑（3倍复制真实数据），这是解决数据不平衡的关键策略。
+2.  **Training 区分**：明确区分了 `2_train.py` (Stage 1, 1024sz, 基础训练) 和 `resume_train.py` (Stage 2, 960sz, `box=8.5` 高召回率, 双Y轴适配)。
+3.  **Feature 更新**：添加了 **Dual Y-Axis Support**（双Y轴支持），因为我在 `synthetic chart generator.py` 和 `resume_train.py` 中都看到了相关逻辑。
+4.  **Sim2Real 细节**：在 `augment_data.py` 描述中具体化了使用的增强手段（JPEG压缩、高斯模糊等）。
+5.  **Strict Inference**：加入了 `real chart test.py` 的描述，强调了它包含更严格的过滤和分组逻辑 (L/R/T/B stacks)。
+
+```
