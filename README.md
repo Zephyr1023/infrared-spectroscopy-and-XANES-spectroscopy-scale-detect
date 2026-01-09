@@ -155,7 +155,3 @@ python 3_inference.py --model weights/best.pt --source "path/to/your/images"
 <div align="center">
 <p>Developed for Scientific Data Extraction | 2025</p>
 </div>
-
-```
-
-```
